@@ -55,26 +55,8 @@ C#, Windows Forms (.NET Framework).
 
 Схема вызова функций:
 
-ParseLexpSeq()
-├─ ParseLexp()
-│   ├─ (если Current.Type == Number) 
-│   │     └─ ParseAtom()
-│   │         └─ MatchNumber() → Consume()
-│   ├─ (если Current.Type == Identifier)
-│   │     └─ ParseAtom()
-│   │         └─ MatchIdentifier() → Consume()
-│   ├─ (если Current.Type == LParen)
-│   │     └─ ParseList()
-│   │         ├─ Match("(") → Consume()
-│   │         ├─ ParseLexpSeq()    ← рекурсия
-│   │         └─ Match(")") → Consume()
-│   └─ (иначе) 
-│         └─ Error("Atom|List") → Consume()   // пропускаем ошибочный токен
-│
-├─ (пока Current.Type ∈ {Number, Identifier, LParen, Unknown})
-│     └─ ParseLexp()   ← та же логика, что и выше
-│
-└─ (иначе ε — выход из цикла и возврат к вышестоящему уровню)
+![image](https://github.com/user-attachments/assets/25bdc946-fcea-47c4-9202-d7f5fa893393)
+
 
 Тестовые примеры:
 Пример 1:
