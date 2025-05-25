@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows.Forms;
 using System.Text.RegularExpressions;
 using System.Drawing;
+using System.Collections.Generic;
 
 namespace KompilatoriLaba1
 {
@@ -23,6 +24,7 @@ namespace KompilatoriLaba1
 
         private void Compiler_Load(object sender, EventArgs e)
         {
+            // Настройка колонок dataGridView1
             dataGridView1.Columns.Clear();
             dataGridView1.Columns.Add("Тип", "Тип");
             dataGridView1.Columns.Add("Строка", "Строка");
@@ -162,6 +164,7 @@ namespace KompilatoriLaba1
         private void button10_Click(object sender, EventArgs e) => new AboutProgramm().Show();
         private void button11_Click(object sender, EventArgs e) => new Spravka().Show();
 
+        // Вспомогательные методы для общего сканирования
         private void ClearResults()
         {
             dataGridView1.Rows.Clear();
@@ -176,50 +179,386 @@ namespace KompilatoriLaba1
             richTextBox1.SelectionLength = 0;
         }
 
-        private void buttonPassword_Click(object sender, EventArgs e)
+        // Универсальный метод для Regex-сканирования
+        private void ScanPattern(Regex pattern, string type)
         {
-            ClearResults();
             var text = richTextBox1.Text;
-            foreach (Match m in rxWords.Matches(text))
+            foreach (Match m in pattern.Matches(text))
             {
-                dataGridView1.Rows.Add("Пароль", m.Value, m.Index);
+                dataGridView1.Rows.Add(type, m.Value, m.Index);
                 richTextBox1.Select(m.Index, m.Length);
                 richTextBox1.SelectionBackColor = Color.Yellow;
             }
+        }
+
+        // Специальный метод для ИНН (определение типа по длине)
+        private void ScanINN(Regex pattern)
+        {
+            var text = richTextBox1.Text;
+            foreach (Match m in pattern.Matches(text))
+            {
+                string innType = m.Value.Length == 10 ? "ИНН Юр. лица" : "ИНН Физ. лица";
+                dataGridView1.Rows.Add(innType, m.Value, m.Index);
+                richTextBox1.Select(m.Index, m.Length);
+                richTextBox1.SelectionBackColor = Color.Yellow;
+            }
+        }
+
+        // Методы-обработчики для трёх кнопок
+        private void buttonPassword_Click(object sender, EventArgs e)
+        {
+            ClearResults();
+            ScanPattern(rxWords, "Пароль");
             ResetCaret();
         }
 
         private void buttonINN_Click(object sender, EventArgs e)
         {
             ClearResults();
-            var text = richTextBox1.Text;
-            foreach (Match m in rxInn.Matches(text))
-            {
-                // Определяем тип ИНН по длине
-                string innType = m.Value.Length == 10
-                    ? "ИНН Юр. лица"
-                    : "ИНН Физ. лица";
-                dataGridView1.Rows.Add(innType, m.Value, m.Index);
-                richTextBox1.Select(m.Index, m.Length);
-                richTextBox1.SelectionBackColor = Color.Yellow;
-            }
+            ScanINN(rxInn);
             ResetCaret();
         }
 
         private void buttonTime_Click(object sender, EventArgs e)
         {
             ClearResults();
-            var text = richTextBox1.Text;
-            foreach (Match m in rxTime.Matches(text))
+            ScanPattern(rxTime, "Время (Regex)");
+            ResetCaret();
+        }
+
+        // Новый метод поиска через DFA-автомат
+        private List<(string Value, int Index)> FindTimeByAutomaton(string text)
+        {
+            var results = new List<(string, int)>();
+            int n = text.Length;
+
+            for (int i = 0; i < n; i++)
             {
-                dataGridView1.Rows.Add("Время", m.Value, m.Index);
-                richTextBox1.Select(m.Index, m.Length);
-                richTextBox1.SelectionBackColor = Color.Yellow;
+                int state = 0;
+                int j = i;
+
+                while (j < n)
+                {
+                    char c = text[j];
+                    switch (state)
+                    {
+                        case 0: // часы
+                            if (char.IsDigit(c))
+                            {
+                                int d = c - '0';
+                                if (d <= 2 && j + 1 < n && char.IsDigit(text[j + 1]))
+                                {
+                                    int d2 = text[j + 1] - '0';
+                                    int hour = d * 10 + d2;
+                                    if (hour <= 23)
+                                    {
+                                        j += 2; state = 1; continue;
+                                    }
+                                }
+                                j++; state = 1; continue;
+                            }
+                            state = -1; break;
+                        case 1: // ':'
+                            if (c == ':') { j++; state = 2; continue; }
+                            state = -1; break;
+                        case 2: // минуты
+                            if (char.IsDigit(c))
+                            {
+                                int d = c - '0';
+                                if (j + 1 < n && char.IsDigit(text[j + 1]))
+                                {
+                                    int d2 = text[j + 1] - '0';
+                                    int minute = d * 10 + d2;
+                                    if (minute <= 59)
+                                    {
+                                        j += 2; state = 3; continue;
+                                    }
+                                }
+                                j++; state = 3; continue;
+                            }
+                            state = -1; break;
+                        case 3: // ':'
+                            if (c == ':') { j++; state = 4; continue; }
+                            state = -1; break;
+                        case 4: // секунды
+                            if (char.IsDigit(c))
+                            {
+                                int d = c - '0';
+                                if (j + 1 < n && char.IsDigit(text[j + 1]))
+                                {
+                                    int d2 = text[j + 1] - '0';
+                                    int second = d * 10 + d2;
+                                    if (second <= 59)
+                                    {
+                                        j += 2; state = 5; continue;
+                                    }
+                                }
+                                j++; state = 5; continue;
+                            }
+                            state = -1; break;
+                        default:
+                            state = -1; break;
+                    }
+                    break; // выход из while при ошибке или default
+                }
+
+                if (state == 5)
+                {
+                    string match = text.Substring(i, j - i);
+                    results.Add((match, i));
+                }
+            }
+
+            return results;
+        }
+
+        // Обработчик для новой кнопки "Время (автомат)"
+        private void buttonTimeAuto_Click(object sender, EventArgs e)
+        {
+            ClearResults();
+            var matches = FindTimeByAutomaton(richTextBox1.Text);
+            foreach (var (val, idx) in matches)
+            {
+                dataGridView1.Rows.Add("Время (автомат)", val, idx);
+                richTextBox1.Select(idx, val.Length);
+                richTextBox1.SelectionBackColor = Color.LightGreen;
             }
             ResetCaret();
         }
+
+        private void buttonOpenForm2_Click(object sender, EventArgs e)
+        {
+            // Создаём и показываем Form2
+            var form2 = new Form2();
+            form2.Show();
+            // Скрываем эту форму
+            this.Hide();
+        }
     }
 }
+
+//using System;
+//using System.IO;
+//using System.Windows.Forms;
+//using System.Text.RegularExpressions;
+//using System.Drawing;
+
+//namespace KompilatoriLaba1
+//{
+//    public partial class Compiler : Form
+//    {
+//        private bool isTextChanged = false;
+//        private string currentFilePath = string.Empty;
+
+//        // Предкомпилированные регулярные выражения
+//        private static readonly Regex rxWords = new Regex(@"[А-Яа-я0-9\p{P}\p{S}]+", RegexOptions.Compiled);
+//        private static readonly Regex rxInn = new Regex(@"\b(?:\d{10}|\d{12})\b", RegexOptions.Compiled);
+//        private static readonly Regex rxTime = new Regex(@"\b(?:[01]?\d|2[0-3]):(?:[0-5]?\d):(?:[0-5]?\d)\b", RegexOptions.Compiled);
+
+//        public Compiler()
+//        {
+//            InitializeComponent();
+//        }
+
+//        private void Compiler_Load(object sender, EventArgs e)
+//        {
+//            dataGridView1.Columns.Clear();
+//            dataGridView1.Columns.Add("Тип", "Тип");
+//            dataGridView1.Columns.Add("Строка", "Строка");
+//            dataGridView1.Columns.Add("Позиция", "Позиция");
+//            dataGridView1.AllowUserToAddRows = false;
+//        }
+
+//        private void richTextBox1_TextChanged(object sender, EventArgs e)
+//        {
+//            isTextChanged = true;
+//        }
+
+//        private bool CheckForUnsavedChanges()
+//        {
+//            if (!isTextChanged) return true;
+//            var result = MessageBox.Show(
+//                "Сохранить изменения перед продолжением?",
+//                "Несохранённые изменения",
+//                MessageBoxButtons.YesNoCancel,
+//                MessageBoxIcon.Warning);
+
+//            if (result == DialogResult.Yes)
+//                return SaveFile();
+//            if (result == DialogResult.No)
+//                return true;
+
+//            return false;
+//        }
+
+//        private bool SaveFile()
+//        {
+//            if (string.IsNullOrEmpty(currentFilePath))
+//                return SaveFileAs();
+
+//            try
+//            {
+//                File.WriteAllText(currentFilePath, richTextBox1.Text);
+//                isTextChanged = false;
+//                return true;
+//            }
+//            catch (Exception ex)
+//            {
+//                MessageBox.Show($"Ошибка при сохранении: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+//                return false;
+//            }
+//        }
+
+//        private bool SaveFileAs()
+//        {
+//            using (var dlg = new SaveFileDialog
+//            {
+//                Filter = "Text Files|*.txt",
+//                Title = "Сохранить файл"
+//            })
+//            {
+//                if (dlg.ShowDialog() != DialogResult.OK)
+//                    return false;
+
+//                currentFilePath = dlg.FileName;
+//                return SaveFile();
+//            }
+//        }
+
+//        private void открытьToolStripMenuItem_Click(object sender, EventArgs e)
+//        {
+//            if (!CheckForUnsavedChanges()) return;
+
+//            using (var dlg = new OpenFileDialog
+//            {
+//                Filter = "Text Files|*.txt",
+//                Title = "Открыть текстовый файл"
+//            })
+//            {
+//                if (dlg.ShowDialog() != DialogResult.OK) return;
+//                try
+//                {
+//                    currentFilePath = dlg.FileName;
+//                    richTextBox1.Text = File.ReadAllText(currentFilePath);
+//                    isTextChanged = false;
+//                }
+//                catch (Exception ex)
+//                {
+//                    MessageBox.Show($"Ошибка при открытии файла: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+//                }
+//            }
+//        }
+
+//        private void создатьToolStripMenuItem_Click(object sender, EventArgs e)
+//        {
+//            if (!CheckForUnsavedChanges()) return;
+
+//            using (var dlg = new SaveFileDialog
+//            {
+//                Filter = "Text Files|*.txt",
+//                Title = "Создать новый текстовый файл",
+//                FileName = "Новый файл.txt"
+//            })
+//            {
+//                if (dlg.ShowDialog() != DialogResult.OK) return;
+//                try
+//                {
+//                    File.Create(dlg.FileName).Close();
+//                    currentFilePath = dlg.FileName;
+//                    richTextBox1.Clear();
+//                    isTextChanged = false;
+//                }
+//                catch (Exception ex)
+//                {
+//                    MessageBox.Show($"Ошибка при создании файла: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+//                }
+//            }
+//        }
+
+//        private void выходToolStripMenuItem_Click(object sender, EventArgs e)
+//        {
+//            if (CheckForUnsavedChanges())
+//                Close();
+//        }
+
+//        private void Compiler_FormClosing(object sender, FormClosingEventArgs e)
+//        {
+//            if (!CheckForUnsavedChanges())
+//                e.Cancel = true;
+//        }
+
+//        private void сохранитьToolStripMenuItem_Click(object sender, EventArgs e) => SaveFile();
+//        private void сохранитьКакToolStripMenuItem_Click(object sender, EventArgs e) => SaveFileAs();
+
+//        private void отменитьToolStripMenuItem_Click(object sender, EventArgs e) => richTextBox1.Undo();
+//        private void повторитьToolStripMenuItem_Click(object sender, EventArgs e) => richTextBox1.Redo();
+//        private void вырезатьToolStripMenuItem_Click(object sender, EventArgs e) => richTextBox1.Cut();
+//        private void копироватьToolStripMenuItem_Click(object sender, EventArgs e) => richTextBox1.Copy();
+//        private void вставитьToolStripMenuItem_Click(object sender, EventArgs e) => richTextBox1.Paste();
+//        private void удалитьToolStripMenuItem_Click(object sender, EventArgs e) => richTextBox1.SelectedText = string.Empty;
+//        private void выделитьВсеToolStripMenuItem_Click(object sender, EventArgs e) => richTextBox1.SelectAll();
+
+//        private void button10_Click(object sender, EventArgs e) => new AboutProgramm().Show();
+//        private void button11_Click(object sender, EventArgs e) => new Spravka().Show();
+
+//        private void ClearResults()
+//        {
+//            dataGridView1.Rows.Clear();
+//            richTextBox1.SelectAll();
+//            richTextBox1.SelectionBackColor = richTextBox1.BackColor;
+//            richTextBox1.SelectionLength = 0;
+//        }
+
+//        private void ResetCaret()
+//        {
+//            richTextBox1.SelectionStart = 0;
+//            richTextBox1.SelectionLength = 0;
+//        }
+
+//        private void buttonPassword_Click(object sender, EventArgs e)
+//        {
+//            ClearResults();
+//            var text = richTextBox1.Text;
+//            foreach (Match m in rxWords.Matches(text))
+//            {
+//                dataGridView1.Rows.Add("Пароль", m.Value, m.Index);
+//                richTextBox1.Select(m.Index, m.Length);
+//                richTextBox1.SelectionBackColor = Color.Yellow;
+//            }
+//            ResetCaret();
+//        }
+
+//        private void buttonINN_Click(object sender, EventArgs e)
+//        {
+//            ClearResults();
+//            var text = richTextBox1.Text;
+//            foreach (Match m in rxInn.Matches(text))
+//            {
+//                // Определяем тип ИНН по длине
+//                string innType = m.Value.Length == 10
+//                    ? "ИНН Юр. лица"
+//                    : "ИНН Физ. лица";
+//                dataGridView1.Rows.Add(innType, m.Value, m.Index);
+//                richTextBox1.Select(m.Index, m.Length);
+//                richTextBox1.SelectionBackColor = Color.Yellow;
+//            }
+//            ResetCaret();
+//        }
+
+//        private void buttonTime_Click(object sender, EventArgs e)
+//        {
+//            ClearResults();
+//            var text = richTextBox1.Text;
+//            foreach (Match m in rxTime.Matches(text))
+//            {
+//                dataGridView1.Rows.Add("Время", m.Value, m.Index);
+//                richTextBox1.Select(m.Index, m.Length);
+//                richTextBox1.SelectionBackColor = Color.Yellow;
+//            }
+//            ResetCaret();
+//        }
+//    }
+//}
 //using System;
 //using System.IO;
 //using System.Windows.Forms;

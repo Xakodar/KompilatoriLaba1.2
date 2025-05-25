@@ -6,17 +6,33 @@ using System.Windows.Forms;
 
 namespace KompilatoriLaba1
 {
-    internal static class Program
+    using System;
+    using System.Windows.Forms;
+
+    namespace KompilatoriLaba1
     {
-        /// <summary>
-        /// Главная точка входа для приложения.
-        /// </summary>
-        [STAThread]
-        static void Main()
+        static class Program
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Compiler());
+            [STAThread]
+            static void Main()
+            {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Application.Run(new Form2());
+            }
         }
     }
+    //internal static class Program
+    //{
+    //    /// <summary>
+    //    /// Главная точка входа для приложения.
+    //    /// </summary>
+    //    [STAThread]
+    //    static void Main()
+    //    {
+    //        Application.EnableVisualStyles();
+    //        Application.SetCompatibleTextRenderingDefault(false);
+    //        Application.Run(new Compiler());
+    //    }
+    //}
 }
