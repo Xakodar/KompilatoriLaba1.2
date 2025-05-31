@@ -71,3 +71,84 @@ C#, Windows Forms (.NET Framework).
 
 Пример 3:
 ![image](https://github.com/user-attachments/assets/db5464a3-8cd8-4410-ad8e-69026778d825)
+
+
+## 8 лабораторная.
+
+### Грамматика:
+
+```
+Для грамматики G[Lexp-seq] разработать и реализовать алгоритм 
+анализа на основе метода рекурсивного спуска. 
+1. Lexp-seq ::= Lexp-seq Lexp | Lexp  
+2. Lexp ::= Atom | List  
+3. Atom ::= „number‟ | „identifier‟  
+4. List ::= „(‟ Lexp-seq „)‟ 
+Примечание: данная грамматика порождает цепочки упрощенного языка Lisp.
+```
+
+### Язык:
+
+C#, Windows Forms (.NET Framework).
+
+
+### Классификация грамматики:
+
+Контекстно-свободная грамматика (КС).
+
+Подходит для разбора методом LL(1) (рекурсивный спуск без левой рекурсии).
+
+
+### Схема вызова функций:
+
+```
+Lexer
+├── TokenType (enum)
+│   ├── Number
+│   ├── Identifier
+│   ├── LParen
+│   ├── RParen
+│   ├── Unknown
+│   └── EOF
+│
+├── Token (class)
+│   ├── Constructor(TokenType, string, int)
+│   └── ToString()
+│
+├── LexError (class)
+│   ├── Constructor(string, int)
+│   └── ToString()
+│
+└── Static Methods
+    ├── Tokenize(string, out List<Token>, out List<LexError>)
+    │   ├── Handles whitespace
+    │   ├── Processes numbers ([0-9]+)
+    │   ├── Processes identifiers ([A-Za-z_][A-Za-z0-9_]*)
+    │   ├── Processes parentheses (with stack validation)
+    │   │   ├── '(' → LParen (pushes to stack)
+    │   │   └── ')' → RParen (pops from stack)
+    │   ├── Processes Cyrillic text (IsCyrillicLetter)
+    │   ├── Processes unknown characters
+    │   └── Adds EOF token
+    │
+    └── IsCyrillicLetter(char) (helper)
+        └── Checks Unicode ranges:
+            ├── U+0400–U+04FF
+            └── U+0500–U+052F
+```
+
+### Тестовые примеры:
+
+Пример 1:
+
+![image](https://github.com/user-attachments/assets/c0511faf-c94a-4c31-a08c-e5180f1eb0e3)
+
+
+Пример 2:
+
+![image](https://github.com/user-attachments/assets/cdbe9fa6-afda-478e-a5e8-bcec45016238)
+
+
+Пример 3:
+
+![image](https://github.com/user-attachments/assets/37ef6ee4-fffe-483d-ab3d-5ab8a0f4af1c)
