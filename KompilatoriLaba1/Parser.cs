@@ -1,4 +1,5 @@
-﻿using System;
+﻿// Parser.cs
+using System;
 using System.Collections.Generic;
 
 namespace KompilatoriLaba1
@@ -11,11 +12,12 @@ namespace KompilatoriLaba1
 
         public Parser(List<Lexer.Token> tokens, Action<string> logCallback)
         {
+            // Копируем, чтобы не портить исходный список
             this.tokens = new List<Lexer.Token>(tokens);
             this.log = logCallback;
             this.position = 0;
 
-            // Гарантируем EOF в конце
+            // Гарантируем, что в конце есть EOF
             if (this.tokens.Count == 0 ||
                 this.tokens[this.tokens.Count - 1].Type != Lexer.TokenType.EOF)
             {
@@ -31,11 +33,11 @@ namespace KompilatoriLaba1
 
         public void Parse()
         {
-            log("=== Начало разбора ===");
+            log("=== Начало синтаксического анализа ===");
             ParseLexpSeq();
             if (Peek().Type != Lexer.TokenType.EOF)
                 log($"[Ошибка] неожиданный токен {Peek()}");
-            log("=== Разбор завершён ===");
+            log("=== Синтаксический анализ завершён ===");
         }
 
         // Lexp-seq ::= Lexp { Lexp }
@@ -43,11 +45,13 @@ namespace KompilatoriLaba1
         {
             log("→ ParseLexpSeq");
             ParseLexp();
+            // Теперь Unknown включён в IsStartOfLexp,
+            // поэтому при встрече любого Unknown парсер зайдёт в ParseLexp и пропустит его.
             while (IsStartOfLexp(Peek().Type))
                 ParseLexp();
         }
 
-        // Теперь Unknown тоже считается «стартом» Lexp
+        // Распознаём Number, Identifier, LParen и Unknown
         private bool IsStartOfLexp(Lexer.TokenType t) =>
                t == Lexer.TokenType.Number
             || t == Lexer.TokenType.Identifier
@@ -61,17 +65,22 @@ namespace KompilatoriLaba1
             var t = Peek();
             if (t.Type == Lexer.TokenType.Number
              || t.Type == Lexer.TokenType.Identifier)
+            {
                 ParseAtom();
+            }
             else if (t.Type == Lexer.TokenType.LParen)
+            {
                 ParseList();
+            }
             else
             {
-                // сюда попадёт Unknown
+                // сюда попадут Unknown (например, подряд идущие русские буквы или символ '@')
                 log($"  [Ошибка] ожидался Atom или List, но {t}");
-                Consume(); // пропускаем ошибочный токен
+                Consume(); // пропускаем ошибочный токен и возвращаемся на уровень повыше
             }
         }
 
+        // Atom ::= number | identifier
         private void ParseAtom()
         {
             log("    → ParseAtom");
@@ -89,9 +98,11 @@ namespace KompilatoriLaba1
             }
         }
 
+        // List ::= '(' Lexp-seq ')'
         private void ParseList()
         {
             log("    → ParseList");
+            // пытаемся «совпасть» с '('
             if (Peek().Type == Lexer.TokenType.LParen)
             {
                 log($"      matched {Peek()}");
@@ -102,9 +113,10 @@ namespace KompilatoriLaba1
                 log($"    [Ошибка] ожидалась '(', но {Peek()}");
             }
 
-            // Разбираем всё, что похоже на Lexp, включая Unknown
+            // внутри списка снова LexpSeq
             ParseLexpSeq();
 
+            // пытаемся «закрыть» ')'
             if (Peek().Type == Lexer.TokenType.RParen)
             {
                 log($"      matched {Peek()}");
@@ -117,6 +129,126 @@ namespace KompilatoriLaba1
         }
     }
 }
+
+//using System;
+//using System.Collections.Generic;
+
+//namespace KompilatoriLaba1
+//{
+//    public class Parser
+//    {
+//        private readonly List<Lexer.Token> tokens;
+//        private int position;
+//        private readonly Action<string> log;
+
+//        public Parser(List<Lexer.Token> tokens, Action<string> logCallback)
+//        {
+//            this.tokens = new List<Lexer.Token>(tokens);
+//            this.log = logCallback;
+//            this.position = 0;
+
+//            // Гарантируем EOF в конце
+//            if (this.tokens.Count == 0 ||
+//                this.tokens[this.tokens.Count - 1].Type != Lexer.TokenType.EOF)
+//            {
+//                int pos = this.tokens.Count > 0
+//                    ? this.tokens[this.tokens.Count - 1].Position
+//                    : 0;
+//                this.tokens.Add(new Lexer.Token(Lexer.TokenType.EOF, "", pos));
+//            }
+//        }
+
+//        private Lexer.Token Peek() => tokens[position];
+//        private Lexer.Token Consume() => tokens[position++];
+
+//        public void Parse()
+//        {
+//            log("=== Начало разбора ===");
+//            ParseLexpSeq();
+//            if (Peek().Type != Lexer.TokenType.EOF)
+//                log($"[Ошибка] неожиданный токен {Peek()}");
+//            log("=== Разбор завершён ===");
+//        }
+
+//        // Lexp-seq ::= Lexp { Lexp }
+//        private void ParseLexpSeq()
+//        {
+//            log("→ ParseLexpSeq");
+//            ParseLexp();
+//            while (IsStartOfLexp(Peek().Type))
+//                ParseLexp();
+//        }
+
+//        // Теперь Unknown тоже считается «стартом» Lexp
+//        private bool IsStartOfLexp(Lexer.TokenType t) =>
+//               t == Lexer.TokenType.Number
+//            || t == Lexer.TokenType.Identifier
+//            || t == Lexer.TokenType.LParen
+//            || t == Lexer.TokenType.Unknown;
+
+//        // Lexp ::= Atom | List
+//        private void ParseLexp()
+//        {
+//            log("  → ParseLexp");
+//            var t = Peek();
+//            if (t.Type == Lexer.TokenType.Number
+//             || t.Type == Lexer.TokenType.Identifier)
+//                ParseAtom();
+//            else if (t.Type == Lexer.TokenType.LParen)
+//                ParseList();
+//            else
+//            {
+//                // сюда попадёт Unknown
+//                log($"  [Ошибка] ожидался Atom или List, но {t}");
+//                Consume(); // пропускаем ошибочный токен
+//            }
+//        }
+
+//        private void ParseAtom()
+//        {
+//            log("    → ParseAtom");
+//            var t = Peek();
+//            if (t.Type == Lexer.TokenType.Number
+//             || t.Type == Lexer.TokenType.Identifier)
+//            {
+//                log($"      matched {t}");
+//                Consume();
+//            }
+//            else
+//            {
+//                log($"    [Ошибка] ожидался Atom, но {t}");
+//                Consume();
+//            }
+//        }
+
+//        private void ParseList()
+//        {
+//            log("    → ParseList");
+//            if (Peek().Type == Lexer.TokenType.LParen)
+//            {
+//                log($"      matched {Peek()}");
+//                Consume();
+//            }
+//            else
+//            {
+//                log($"    [Ошибка] ожидалась '(', но {Peek()}");
+//            }
+
+//            // Разбираем всё, что похоже на Lexp, включая Unknown
+//            ParseLexpSeq();
+
+//            if (Peek().Type == Lexer.TokenType.RParen)
+//            {
+//                log($"      matched {Peek()}");
+//                Consume();
+//            }
+//            else
+//            {
+//                log($"    [Ошибка] ожидалась ')', но {Peek()}");
+//            }
+//        }
+//    }
+//}
 
 //// Parser.cs
 //using System;

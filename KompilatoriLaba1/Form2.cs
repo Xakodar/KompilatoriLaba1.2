@@ -121,6 +121,9 @@ namespace KompilatoriLaba1
         }
 
         // Меню Правка
+        private void сохранитьToolStripMenuItem_Click(object sender, EventArgs e) => SaveFile();
+        private void сохранитьКакToolStripMenuItem_Click(object sender, EventArgs e) => SaveFileAs();
+
         private void отменитьToolStripMenuItem_Click(object sender, EventArgs e) => richTextBox1.Undo();
         private void повторитьToolStripMenuItem_Click(object sender, EventArgs e) => richTextBox1.Redo();
         private void вырезатьToolStripMenuItem_Click(object sender, EventArgs e) => richTextBox1.Cut();
@@ -128,7 +131,6 @@ namespace KompilatoriLaba1
         private void вставитьToolStripMenuItem_Click(object sender, EventArgs e) => richTextBox1.Paste();
         private void удалитьToolStripMenuItem_Click(object sender, EventArgs e) => richTextBox1.SelectedText = string.Empty;
         private void выделитьВсеToolStripMenuItem_Click(object sender, EventArgs e) => richTextBox1.SelectAll();
-
         // Переход к форме компилятора
         private void buttonOpenForm1_Click(object sender, EventArgs e)
         {
