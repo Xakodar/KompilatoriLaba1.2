@@ -33,3 +33,41 @@ private static readonly Regex rxTime = new Regex(@"\b(?:[01]?\d|2[0-3]):(?:[0-5]
 
 
 
+## 8 лабораторная работа.
+Грамматика:
+
+G[Lexp-seq]: 
+1. Lexp-seq ::= Lexp-seq Lexp | Lexp  
+2. Lexp ::= Atom | List  
+3. Atom ::= „number‟ | „identifier‟  
+4.List ::= „(‟ Lexp-seq „)‟
+
+Примечание: данная грамматика порождает цепочки упрощенного 
+языка Lisp.
+Язык:
+C#, Windows Forms (.NET Framework).
+
+Классификация грамматики:
+
+Контекстно-свободная грамматика (КС).
+
+Подходит для разбора методом LL(1) (рекурсивный спуск без левой рекурсии).
+
+Схема вызова функций:
+
+![image](https://github.com/user-attachments/assets/25bdc946-fcea-47c4-9202-d7f5fa893393)
+
+
+Тестовые примеры:
+Пример 1:
+
+![image](https://github.com/user-attachments/assets/a7aefa71-3815-4c66-9d76-e3d43da5a33c)
+
+
+Пример 2:
+
+![image](https://github.com/user-attachments/assets/5c5372a0-f5b1-4ebf-af43-80aa7ea6ba0f)
+
+
+Пример 3:
+![image](https://github.com/user-attachments/assets/db5464a3-8cd8-4410-ad8e-69026778d825)
